@@ -1,30 +1,47 @@
 {
   "expo": {
-    "name": "project-voice-ai",
-    "slug": "project-voice-ai",
+    "name": "project-ai",
+    "slug": "project-ai",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
+    "scheme": "voiceai",
+    "assetBundlePatterns": ["**/*"],
+    "newArchEnabled": false,
+
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.voiceai.assistant",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Aplikasi membutuhkan akses mikrofon untuk input suara.",
+        "NSSpeechRecognitionUsageDescription": "Aplikasi membutuhkan izin Speech Recognition untuk mengubah suara menjadi teks."
+      }
     },
+
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "package": "com.voiceai.assistant",
+      "permissions": ["RECORD_AUDIO"]
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
+
+    "plugins": [
+      [
+        "@react-native-voice/voice",
+        {
+          "microphonePermission": "Izinkan aplikasi mengakses mikrofon untuk input suara.",
+          "speechRecognitionPermission": "Izinkan aplikasi melakukan speech recognition untuk mengubah suara menjadi teks."
+        }
+      ]
+    ],
+
+    "extra": {
+      "eas": {
+        "projectId": "804ca886-369a-446b-b5c8-48cc9239dcab"
+      }
     }
   }
 }
