@@ -1,6 +1,10 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import * as SplashScreen from 'expo-splash-screen';
+
+import SplashView from './SplashView'; 
+
 import OnboardingScreen from './screens/Onboardingscreen';
 import LoginScreen from './screens/LoginScreen';
 import HomeScreen from './screens/HomeScreen';
@@ -13,7 +17,7 @@ export type RootStackParamList = {
   Onboarding: undefined;
   Login: undefined;
   Home: undefined;
-  Chat: { taskType: string; historyId?: number; autoStart?: boolean }; // ✅ tambah autoStart
+  Chat: { taskType: string; historyId?: number; autoStart?: boolean };
   DocumentPreview: {
     documentUrl: string;
     documentTitle: string;
@@ -25,7 +29,32 @@ export type RootStackParamList = {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+SplashScreen.preventAutoHideAsync().catch(() => {});
+
 export default function App() {
+  const [appReady, setAppReady] = useState(false);
+
+  useEffect(() => {
+    let timer: any;
+
+    (async () => {
+      try {
+        await SplashScreen.hideAsync();
+        timer = setTimeout(() => {
+          setAppReady(true);
+        }, 3000);
+      } catch {
+        setAppReady(true);
+      }
+    })();
+
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, []);
+
+  if (!appReady) return <SplashView />;
+
   return (
     <NavigationContainer>
       <Stack.Navigator

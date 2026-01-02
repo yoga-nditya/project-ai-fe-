@@ -241,7 +241,7 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
             <View style={styles.quickActionsContainer}>
               <Pressable
                 style={({ pressed }) => [styles.quickActionItem, pressed && styles.quickActionPressed]}
-                onPress={() => navigation.navigate('Chat', { taskType: 'penawaran' })}
+                onPress={() => navigation.navigate('Home')} // ✅ DIUBAH: Buat Chat Baru -> Home
               >
                 <Ionicons name="chatbubble" size={20} color="#000" />
                 <Text style={styles.quickActionText}>Buat Chat Baru</Text>

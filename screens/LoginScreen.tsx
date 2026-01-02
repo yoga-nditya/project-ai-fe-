@@ -11,6 +11,7 @@ import {
   ScrollView,
   Keyboard,
   TouchableWithoutFeedback,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -27,15 +28,12 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
   const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = () => {
-    // Dismiss keyboard
     Keyboard.dismiss();
-    
-    // Validasi dengan akun hardcoded
+
     if (email === 'admin@gmail.com' && password === 'admin123') {
-      // Navigate ke Home setelah login
       navigation.replace('Home');
     } else {
-      alert('Email atau password salah');
+      Alert.alert('Gagal Masuk', 'Email atau password salah');
     }
   };
 
@@ -54,7 +52,16 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
             keyboardShouldPersistTaps="handled"
           >
             {/* App Title */}
-            <Text style={styles.appTitle}>AI Voice Document</Text>
+            <Text style={styles.appTitle}>Raisa</Text>
+
+            {/* Dot grid */}
+            <View style={styles.decorativeDotsContainer}>
+              <View style={styles.decorativeDots}>
+                {[...Array(50)].map((_, i) => (
+                  <View key={i} style={styles.dot} />
+                ))}
+              </View>
+            </View>
 
             {/* Title */}
             <View style={styles.titleContainer}>
@@ -64,7 +71,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
               </Text>
             </View>
 
-            {/* Email Input */}
+            {/* Email */}
             <View style={styles.inputContainer}>
               <View style={styles.iconContainer}>
                 <Ionicons name="mail-outline" size={22} color="#2C2C2C" />
@@ -82,7 +89,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
               />
             </View>
 
-            {/* Password Input */}
+            {/* Password */}
             <View style={styles.inputContainer}>
               <View style={styles.iconContainer}>
                 <Ionicons name="lock-closed-outline" size={22} color="#2C2C2C" />
@@ -139,13 +146,35 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingBottom: 40,
   },
+
+  // ✅ Raisa dibesarkan lagi
   appTitle: {
-    fontSize: 18,
-    fontWeight: '500',
-    color: '#2C2C2C',
+    fontSize: 28, // 🔥 dari 24 → 28
+    fontWeight: '700',
+    color: '#2F5BFF',
     textAlign: 'center',
-    marginBottom: 40,
+    marginBottom: 14,
+    letterSpacing: 0.5,
   },
+
+  decorativeDotsContainer: {
+    alignItems: 'center',
+    marginBottom: 34,
+  },
+  decorativeDots: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    width: 200,
+    justifyContent: 'center',
+  },
+  dot: {
+    width: 2,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: '#D0D0D0',
+    margin: 2,
+  },
+
   titleContainer: {
     marginBottom: 48,
     alignItems: 'center',
@@ -187,13 +216,13 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   loginButton: {
-    backgroundColor: '#2C2C2C',
+    backgroundColor: '#2F5BFF',
     paddingVertical: 18,
     borderRadius: 50,
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.2,
     shadowRadius: 16,
     elevation: 8,
     marginTop: 16,

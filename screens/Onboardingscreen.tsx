@@ -119,7 +119,7 @@ export default function OnboardingScreen({ navigation }: OnboardingScreenProps) 
         </View>
 
         {/* Title */}
-        <Text style={styles.header}>AI Voice Document</Text>
+        <Text style={styles.header}>Raisa</Text>
 
         {/* Microphone Image from Assets */}
         <View style={styles.imageContainer}>

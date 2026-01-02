@@ -12,6 +12,7 @@ import {
   Keyboard,
   TouchableWithoutFeedback,
   Animated,
+  Linking, // ✅ NEW
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -50,6 +51,8 @@ export default function ChatScreen({ navigation, route }: ChatScreenProps) {
 
   const flatListRef = useRef<FlatList>(null);
   const inputRef = useRef<TextInput>(null);
+
+  // ✅ AutoStart per taskType (reset saat taskType berubah)
   const autoStartTriggered = useRef(false);
 
   // Animasi gelombang untuk voice
@@ -61,7 +64,51 @@ export default function ChatScreen({ navigation, route }: ChatScreenProps) {
   const lastAutoSentRef = useRef<string>('');
   const autoSendTimerRef = useRef<any>(null);
 
-  // ✅ Voice lifecycle hanya saat Chat focus
+  // ✅ reset autoStart trigger kalau taskType berubah (biar invoice gak pakai trigger lama)
+  useEffect(() => {
+    autoStartTriggered.current = false;
+  }, [taskType]);
+
+  // ✅ NEW: Normalisasi voice "strip" -> "-"
+  const normalizeVoiceInput = (raw: string) => {
+    const t = (raw || '').trim();
+    if (!t) return t;
+
+    const lower = t.toLowerCase();
+
+    // Jika user hanya bilang "strip"
+    if (lower === 'strip') return '-';
+
+    // Kalau voice result sering jadi: "strip aja", "pakai strip", dll
+    // Dibuat toleran tapi tidak terlalu agresif
+    if (/\bstrip\b/i.test(lower) && lower.length <= 20) return '-';
+
+    return t;
+  };
+
+  /**
+   * ✅ NEW: Auto default alamat -> "Di tempat"
+   * Trigger ketika user bilang alamat tidak ada / tidak ditemukan / tidak tahu alamat, dsb.
+   * (Bekerja untuk input ketik maupun voice)
+   */
+  const normalizeAlamatFallback = (raw: string) => {
+    const t = (raw || '').trim();
+    if (!t) return t;
+
+    const lower = t.toLowerCase();
+
+    const alamatTidakKetemu =
+      /alamat.*(tidak|gak|ga|nggak).*(ditemukan|ketemu|ada)/i.test(lower) ||
+      /(tidak|gak|ga|nggak)\s*(tahu|tau)\s*alamat/i.test(lower) ||
+      /(alamat)\s*(kosong|belum ada)/i.test(lower) ||
+      /(tidak ada alamat|ga ada alamat|nggak ada alamat)/i.test(lower);
+
+    if (t === '-') return t;
+
+    if (alamatTidakKetemu) return 'Di tempat';
+    return t;
+  };
+
   useFocusEffect(
     useCallback(() => {
       Voice.onSpeechStart = () => setIsListening(true);
@@ -69,13 +116,14 @@ export default function ChatScreen({ navigation, route }: ChatScreenProps) {
 
       Voice.onSpeechPartialResults = (event: any) => {
         if (event?.value && event.value.length > 0) {
-          setInputText(event.value[0]);
+          const partial = normalizeVoiceInput(event.value[0]);
+          setInputText(partial);
         }
       };
 
-      // ✅ FINAL RESULT -> auto send
       Voice.onSpeechResults = (event: any) => {
-        const text = (event?.value?.[0] ?? '').trim();
+        const raw = (event?.value?.[0] ?? '').trim();
+        const text = normalizeVoiceInput(raw);
         if (!text) return;
 
         setInputText(text);
@@ -87,7 +135,7 @@ export default function ChatScreen({ navigation, route }: ChatScreenProps) {
 
         if (autoSendTimerRef.current) clearTimeout(autoSendTimerRef.current);
         autoSendTimerRef.current = setTimeout(() => {
-          handleSend(text); // ✅ auto kirim seperti web
+          handleSend(text);
         }, 250);
       };
 
@@ -113,7 +161,6 @@ export default function ChatScreen({ navigation, route }: ChatScreenProps) {
     }, [isLoading])
   );
 
-  // Animasi gelombang
   useEffect(() => {
     if (isListening) {
       const animate = (value: Animated.Value, delay: number) => {
@@ -139,13 +186,39 @@ export default function ChatScreen({ navigation, route }: ChatScreenProps) {
     if (initialHistoryId) {
       setMessages([]);
       loadHistory(initialHistoryId);
-    } else if (autoStart && !autoStartTriggered.current) {
+      return;
+    }
+
+    if (autoStart && !autoStartTriggered.current) {
       autoStartTriggered.current = true;
+
+      const initialCmd =
+        taskType === 'mou'
+          ? 'Buatkan MoU'
+          : taskType === 'invoice'
+          ? 'Buatkan invoice'
+          : 'Buatkan quotation';
+
       setTimeout(() => {
-        handleSend('Buatkan quotation');
-      }, 500);
-    } else {
-      if (!autoStart && messages.length === 0) {
+        handleSend(initialCmd);
+      }, 400);
+      return;
+    }
+
+    if (!autoStart && messages.length === 0) {
+      if (taskType === 'mou') {
+        addMessage(
+          '👋 Halo! Saya siap membantu Anda membuat MoU Tripartit.\n\n' +
+            'Silakan ketik "Buatkan MoU" untuk memulai.',
+          'assistant'
+        );
+      } else if (taskType === 'invoice') {
+        addMessage(
+          '👋 Halo! Saya siap membantu Anda membuat Invoice.\n\n' +
+            'Silakan ketik "Buatkan invoice" untuk memulai.',
+          'assistant'
+        );
+      } else {
         addMessage(
           '👋 Halo! Saya siap membantu Anda membuat quotation limbah B3.\n\n' +
             'Silakan ketik "Buatkan quotation" untuk memulai.',
@@ -153,8 +226,7 @@ export default function ChatScreen({ navigation, route }: ChatScreenProps) {
         );
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialHistoryId]);
+  }, [initialHistoryId, taskType]);
 
   const loadHistory = async (hid: number) => {
     try {
@@ -199,7 +271,9 @@ export default function ChatScreen({ navigation, route }: ChatScreenProps) {
   };
 
   const handleSend = async (customText?: string) => {
-    const text = (customText || inputText).trim();
+    let text = normalizeVoiceInput((customText || inputText).trim());
+    text = normalizeAlamatFallback(text);
+
     if (!text || isLoading) return;
 
     Keyboard.dismiss();
@@ -209,7 +283,7 @@ export default function ChatScreen({ navigation, route }: ChatScreenProps) {
 
     setIsLoading(true);
     try {
-      const response: any = await sendMessage(text, activeHistoryId);
+      const response: any = await sendMessage(text, activeHistoryId, taskType);
 
       if (response?.history_id && !activeHistoryId) {
         setActiveHistoryId(Number(response.history_id));
@@ -227,7 +301,7 @@ export default function ChatScreen({ navigation, route }: ChatScreenProps) {
 
       const quotationData: QuotationData | undefined = response.quotationData;
 
-      if (quotationData && quotationData.items_limbah && quotationData.items_limbah.length > 0) {
+      if (taskType === 'quotation' && quotationData && quotationData.items_limbah && quotationData.items_limbah.length > 0) {
         try {
           const pdfRes = await generateQuotationPDF(quotationData);
           if (pdfRes.success && pdfRes.filePath) {
@@ -277,6 +351,30 @@ export default function ChatScreen({ navigation, route }: ChatScreenProps) {
     });
   };
 
+  const handleDownload = async (file: { type: string; filename: string; url: string }) => {
+    const url = file.url.startsWith('file://') ? file.url : getFileUrl(file.url);
+
+    if (file.type === 'pdf') {
+      navigation.navigate('DocumentPreview', {
+        documentUrl: url,
+        documentTitle: file.filename,
+        pdfUrl: url,
+      });
+      return;
+    }
+
+    try {
+      const canOpen = await Linking.canOpenURL(url);
+      if (canOpen) {
+        await Linking.openURL(url);
+      } else {
+        addMessage(`❌ Tidak bisa membuka link file: ${file.filename}`, 'assistant');
+      }
+    } catch {
+      addMessage(`❌ Gagal membuka file: ${file.filename}`, 'assistant');
+    }
+  };
+
   const handleVoicePress = async () => {
     Keyboard.dismiss();
 
@@ -290,13 +388,11 @@ export default function ChatScreen({ navigation, route }: ChatScreenProps) {
       }
     } else {
       try {
-        // ✅ selalu cancel dulu biar start bersih (ngurangin error 5/7)
         await Voice.cancel().catch(() => {});
         await Voice.start('id-ID');
         setIsListening(true);
       } catch {
         setIsListening(false);
-        // silent fail sesuai request kamu (tanpa munculin kode error)
       }
     }
   };
@@ -304,37 +400,82 @@ export default function ChatScreen({ navigation, route }: ChatScreenProps) {
   const renderMessage = ({ item }: { item: Message }) => {
     const isUser = item.sender === 'user';
 
+    const isInvoice = taskType === 'invoice';
+    const hasFiles = item.files && item.files.length > 0;
+
+    const pdfFile = hasFiles ? item.files!.find((f) => f.type === 'pdf') : undefined;
+    const xlsxFile = hasFiles ? item.files!.find((f) => f.type === 'xlsx') : undefined;
+
     return (
       <View style={[styles.messageContainer, isUser && styles.userMessageContainer]}>
         <View style={[styles.messageBubble, isUser ? styles.userBubble : styles.assistantBubble]}>
           <Text style={[styles.messageText, isUser && styles.userMessageText]}>{item.text}</Text>
 
-          {item.files && item.files.length > 0 && (
-            <TouchableOpacity
-              style={styles.fileCard}
-              onPress={() => handleFilePreview(item.files!)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.filePreview}>
-                <View style={styles.fileIconContainer}>
-                  <Text style={styles.fileIconText}>📄</Text>
-                </View>
-                <Text style={styles.filePreviewText}>Klik untuk preview</Text>
-              </View>
+          {hasFiles && (
+            <>
+              {isInvoice && (pdfFile || xlsxFile) ? (
+                <View style={styles.invoiceFileWrap}>
+                  {pdfFile && (
+                    <TouchableOpacity
+                      style={styles.invoiceBtn}
+                      onPress={() => handleDownload(pdfFile)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.invoiceBtnIcon}>📄</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.invoiceBtnTitle} numberOfLines={1}>
+                          PDF (Template)
+                        </Text>
+                        <Text style={styles.invoiceBtnSub} numberOfLines={1}>
+                          {pdfFile.filename}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  )}
 
-              <View style={styles.fileInfo}>
-                <Text style={styles.fileName} numberOfLines={1}>
-                  {item.files[0].filename}
-                </Text>
-                <View style={styles.fileTypes}>
-                  {item.files.map((file, index) => (
-                    <View key={index} style={styles.fileTypeBadge}>
-                      <Text style={styles.fileTypeText}>{file.type.toUpperCase()}</Text>
-                    </View>
-                  ))}
+                  {xlsxFile && (
+                    <TouchableOpacity
+                      style={styles.invoiceBtn}
+                      onPress={() => handleDownload(xlsxFile)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.invoiceBtnIcon}>📊</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.invoiceBtnTitle} numberOfLines={1}>
+                          Excel
+                        </Text>
+                        <Text style={styles.invoiceBtnSub} numberOfLines={1}>
+                          {xlsxFile.filename}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  )}
                 </View>
-              </View>
-            </TouchableOpacity>
+              ) : (
+                /* default (mou/quotation) tetap card lama */
+                <TouchableOpacity style={styles.fileCard} onPress={() => handleFilePreview(item.files!)} activeOpacity={0.7}>
+                  <View style={styles.filePreview}>
+                    <View style={styles.fileIconContainer}>
+                      <Text style={styles.fileIconText}>📄</Text>
+                    </View>
+                    <Text style={styles.filePreviewText}>Klik untuk preview</Text>
+                  </View>
+
+                  <View style={styles.fileInfo}>
+                    <Text style={styles.fileName} numberOfLines={1}>
+                      {item.files![0].filename}
+                    </Text>
+                    <View style={styles.fileTypes}>
+                      {item.files!.map((file, index) => (
+                        <View key={index} style={styles.fileTypeBadge}>
+                          <Text style={styles.fileTypeText}>{file.type.toUpperCase()}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              )}
+            </>
           )}
         </View>
       </View>
@@ -510,6 +651,25 @@ const styles = StyleSheet.create({
   fileTypes: { flexDirection: 'row', gap: 6 },
   fileTypeBadge: { paddingHorizontal: 8, paddingVertical: 3, backgroundColor: '#111827', borderRadius: 4 },
   fileTypeText: { fontSize: 11, fontWeight: '600', color: '#fff' },
+
+  // ✅ NEW: invoice file buttons
+  invoiceFileWrap: {
+    marginTop: 12,
+    gap: 10,
+  },
+  invoiceBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 12,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  invoiceBtnIcon: { fontSize: 20 },
+  invoiceBtnTitle: { fontSize: 14, fontWeight: '700', color: '#111827' },
+  invoiceBtnSub: { marginTop: 2, fontSize: 12, color: '#6B7280' },
 
   loadingContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 8, gap: 8 },
   loadingText: { fontSize: 13, color: '#6B7280' },

@@ -1,14 +1,8 @@
 import axios, { AxiosInstance } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-/**
- * API Service with Quotation Data Extraction
- * Extracts structured data from backend response for client-side PDF generation
- */
-
-// ========== CONFIGURATION ==========
 const API_BASE_URL = 'https://voizebit-ai.onrender.com'; // Production
-// const API_BASE_URL = 'http://192.168.18.121:5000'; // Local
+// const API_BASE_URL = 'http://10.141.42.128:5000'; // Local
 
 console.log('🌐 API Backend:', API_BASE_URL);
 
@@ -30,6 +24,20 @@ export interface QuotationData {
   termin_hari: string | number;
 }
 
+/** ✅ OPTIONAL: MoU data kalau nanti mau dibuat PDF di mobile */
+export interface MouItem {
+  jenis_limbah: string;
+  kode_limbah: string;
+}
+export interface MouData {
+  nomor_depan: string; // "000"
+  nomor_surat?: string; // "000/PKPLNB3/..."
+  pihak_pertama: string;
+  pihak_kedua: string;
+  pihak_ketiga: string;
+  items_limbah: MouItem[];
+}
+
 export interface APIResponse {
   text: string;
   files?: Array<{
@@ -39,7 +47,9 @@ export interface APIResponse {
   }>;
   quotationData?: QuotationData;
 
-  // ✅ NEW: backend kamu sudah mengembalikan history_id saat start / finish
+  // ✅ OPTIONAL: kalau nanti dibutuhkan
+  mouData?: MouData;
+
   history_id?: number;
 }
 
@@ -77,24 +87,27 @@ export interface DocumentItem {
   history_title: string;
   task_type: string;
   created_at: string;
-  type: string; // docx/pdf
+  type: string;
   filename: string;
   url: string;
 }
 
-// ========== AXIOS INSTANCE ==========
 const api: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 90000, // 90 seconds for Render cold start
+  timeout: 90000,
   headers: {
     'Content-Type': 'application/json',
   },
   withCredentials: true,
 });
 
-// ========== SESSION MANAGEMENT ==========
 let sessionId: string | null = null;
-let conversationState: any = {}; // Store conversation state for PDF generation
+
+// ✅ dipakai untuk state extraction (quotation) dan nanti bisa untuk MoU
+let conversationState: any = {};
+
+// ✅ track flow aktif supaya state tidak nyampur quotation vs MoU vs Invoice
+let activeFlow: 'quotation' | 'mou' | 'invoice' | 'other' = 'other';
 
 const initializeSession = async (): Promise<string> => {
   try {
@@ -164,6 +177,52 @@ api.interceptors.response.use(
   }
 );
 
+// ==========================
+// ✅ HELPERS: flow detector & state reset
+// ==========================
+const detectFlowFromMessage = (msg: string): 'quotation' | 'mou' | 'invoice' | 'other' => {
+  const lower = (msg || '').toLowerCase();
+
+  // MoU
+  if (lower.includes('mou') || lower.includes('mo u') || lower.includes('m o u')) return 'mou';
+
+  // Invoice
+  if (
+    lower.includes('invoice') ||
+    lower.includes('invois') ||
+    lower.includes('invoys') ||
+    lower.includes('invoyce') ||
+    lower.includes('faktur') ||
+    lower.includes('tagihan')
+  ) {
+    return 'invoice';
+  }
+
+  // Quotation / Penawaran
+  if (lower.includes('quotation') || lower.includes('kuotasi') || lower.includes('penawaran')) return 'quotation';
+
+  return 'other';
+};
+
+const resetConversationState = () => {
+  conversationState = {};
+};
+
+const resetStateIfNewFlow = (message: string) => {
+  const flow = detectFlowFromMessage(message);
+
+  // kalau user mulai flow baru -> reset state
+  if (flow !== 'other' && flow !== activeFlow) {
+    activeFlow = flow;
+    resetConversationState();
+  }
+
+  // kalau user message netral tapi activeFlow belum ada, set saat terdeteksi
+  if (activeFlow === 'other' && flow !== 'other') {
+    activeFlow = flow;
+  }
+};
+
 // ========== QUOTATION DATA EXTRACTION ==========
 const extractQuotationData = (responseText: string): QuotationData | undefined => {
   if (
@@ -174,11 +233,7 @@ const extractQuotationData = (responseText: string): QuotationData | undefined =
     return undefined;
   }
 
-  if (
-    conversationState.nama_perusahaan &&
-    conversationState.items_limbah &&
-    conversationState.items_limbah.length > 0
-  ) {
+  if (conversationState.nama_perusahaan && conversationState.items_limbah && conversationState.items_limbah.length > 0) {
     const quotationData: QuotationData = {
       nomor_depan: conversationState.nomor_depan || '001',
       nama_perusahaan: conversationState.nama_perusahaan,
@@ -196,9 +251,33 @@ const extractQuotationData = (responseText: string): QuotationData | undefined =
   return undefined;
 };
 
+// ✅ OPTIONAL: extract MoU (biar siap kalau dibutuhkan)
+const extractMouData = (responseText: string): MouData | undefined => {
+  const ok = responseText.includes('MoU berhasil dibuat') || responseText.includes('Nomor MoU:');
+  if (!ok && !conversationState.pihak_pertama) return undefined;
+
+  if (conversationState.pihak_pertama && conversationState.items_limbah && conversationState.items_limbah.length > 0) {
+    const mouData: MouData = {
+      nomor_depan: conversationState.mou_nomor_depan || conversationState.nomor_depan || '000',
+      nomor_surat: conversationState.nomor_surat,
+      pihak_pertama: conversationState.pihak_pertama,
+      pihak_kedua: conversationState.pihak_kedua || 'PT Sarana Trans Bersama Jaya',
+      pihak_ketiga: conversationState.pihak_ketiga || '',
+      items_limbah: conversationState.items_limbah || [],
+    };
+    console.log('✅ MoU data extracted:', mouData);
+    return mouData;
+  }
+
+  return undefined;
+};
+
 const updateConversationState = (responseText: string): void => {
   const text = responseText.toLowerCase();
 
+  // =========================
+  // QUOTATION parsing (as-is)
+  // =========================
   const nomorMatch = responseText.match(/Nomor Surat:.*?<b>(\d+)<\/b>/i);
   if (nomorMatch) conversationState.nomor_depan = nomorMatch[1];
 
@@ -241,18 +320,55 @@ const updateConversationState = (responseText: string): void => {
   const terminMatch = responseText.match(/Termin:.*?<b>(\d+).*?hari<\/b>/i);
   if (terminMatch) conversationState.termin_hari = terminMatch[1];
 
+  // =========================
+  // ✅ MOU parsing (baru)
+  // =========================
+  const mouNoDepanMatch = responseText.match(/No Depan:.*?<b>(\d+)<\/b>/i);
+  if (mouNoDepanMatch) conversationState.mou_nomor_depan = mouNoDepanMatch[1];
+
+  const nomorMouMatch = responseText.match(/Nomor MoU:.*?<b>(.*?)<\/b>/i);
+  if (nomorMouMatch) conversationState.nomor_surat = nomorMouMatch[1].trim();
+
+  const pihak1Match = responseText.match(/PIHAK PERTAMA:.*?<b>(.*?)<\/b>/i);
+  if (pihak1Match) conversationState.pihak_pertama = pihak1Match[1].trim();
+
+  const pihak2Match = responseText.match(/PIHAK KEDUA:.*?<b>(.*?)<\/b>/i);
+  if (pihak2Match) conversationState.pihak_kedua = pihak2Match[1].trim();
+
+  const pihak3Match = responseText.match(/PIHAK KETIGA:.*?<b>(.*?)<\/b>/i);
+  if (pihak3Match) conversationState.pihak_ketiga = pihak3Match[1].trim();
+
+  // MoU items
+  const mouItemJenis = responseText.match(/•\s*Jenis:\s*<b>(.*?)<\/b>/i);
+  const mouItemKode = responseText.match(/•\s*Kode:\s*<b>(.*?)<\/b>/i);
+
+  if (mouItemJenis && mouItemKode) {
+    if (!conversationState.items_limbah) conversationState.items_limbah = [];
+    conversationState.items_limbah.push({
+      jenis_limbah: mouItemJenis[1].trim(),
+      kode_limbah: mouItemKode[1].trim(),
+    });
+  }
+
   console.log('📊 Conversation state updated:', conversationState);
 };
 
 // ========== API FUNCTIONS ==========
 
 /**
- * ✅ Send message to chatbot (support history_id supaya lanjut chat lama)
+ * ✅ Send message to chatbot
+ * ✅ FIX: kirim taskType ke backend supaya routing tidak nyasar (invoice/mou/quotation)
  */
-export const sendMessage = async (message: string, historyId?: number): Promise<APIResponse> => {
+export const sendMessage = async (message: string, historyId?: number, taskType?: string): Promise<APIResponse> => {
   try {
+    // reset state kalau user mulai flow baru (quotation vs mou vs invoice)
+    resetStateIfNewFlow(message);
+
     const payload: any = { message: message.trim() };
     if (historyId) payload.history_id = historyId;
+
+    // ✅ INI FIX UTAMA: kirim taskType
+    if (taskType) payload.taskType = taskType;
 
     const response = await api.post('/api/chat', payload);
     const data = response.data;
@@ -261,15 +377,29 @@ export const sendMessage = async (message: string, historyId?: number): Promise<
       updateConversationState(data.text);
     }
 
+    // quotation extraction
     const quotationData = extractQuotationData(data.text);
 
+    // mou extraction (optional)
+    const mouData = extractMouData(data.text);
+
+    // reset state kalau selesai quotation
     if (quotationData && data.text.includes('Quotation berhasil dibuat')) {
       const finalData = { ...quotationData };
-      conversationState = {};
-      return { ...data, quotationData: finalData };
+      resetConversationState();
+      activeFlow = 'other';
+      return { ...data, quotationData: finalData, mouData };
     }
 
-    return { ...data, quotationData };
+    // reset state kalau selesai MoU
+    if (data.text && data.text.includes('MoU berhasil dibuat')) {
+      const finalMou = mouData ? { ...mouData } : undefined;
+      resetConversationState();
+      activeFlow = 'other';
+      return { ...data, quotationData, mouData: finalMou };
+    }
+
+    return { ...data, quotationData, mouData };
   } catch (error: any) {
     console.error('❌ sendMessage error:', error);
 
@@ -389,7 +519,8 @@ export const resetSession = async (): Promise<void> => {
     const newSid = `mobile_${Date.now()}_${Math.random().toString(36).substring(7)}`;
     await AsyncStorage.setItem('session_id', newSid);
     sessionId = newSid;
-    conversationState = {};
+    resetConversationState();
+    activeFlow = 'other';
     console.log('✅ Session reset:', newSid);
   } catch (error) {
     console.error('❌ Reset session error:', error);

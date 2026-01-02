@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "project-ai",
-    "slug": "project-ai",
+    "name": "Raisa",
+    "slug": "raisa",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -9,6 +9,12 @@
     "scheme": "voiceai",
     "assetBundlePatterns": ["**/*"],
     "newArchEnabled": false,
+
+    "splash": {
+      "image": "./assets/logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
 
     "ios": {
       "supportsTablet": true,
@@ -40,7 +46,7 @@
 
     "extra": {
       "eas": {
-        "projectId": "804ca886-369a-446b-b5c8-48cc9239dcab"
+        "projectId": "d56c6981-3af0-4860-9d53-620d3363f861"
       }
     }
   }

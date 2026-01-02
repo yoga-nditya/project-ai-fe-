@@ -8,6 +8,7 @@ import {
   Pressable,
   StatusBar,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,12 +27,19 @@ type DocCard = {
   type: string;
   url: string;
   history_id: number;
+
+  // ✅ tambahan untuk preview
+  fullUrl: string;
+  previewUrl: string;
 };
 
 export default function DocumentsScreen({ navigation }: Props) {
   const [q, setQ] = useState('');
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<DocumentItem[]>([]);
+
+  // ✅ map untuk menandai thumbnail yang error (fallback ke icon)
+  const [thumbErrorMap, setThumbErrorMap] = useState<Record<string, boolean>>({});
 
   const fetchDocs = async (query?: string) => {
     try {
@@ -57,43 +65,78 @@ export default function DocumentsScreen({ navigation }: Props) {
     return () => clearTimeout(t);
   }, [q]);
 
+  // ✅ helper buat bikin URL thumbnail (tanpa ubah API kamu)
+  const buildPreviewUrl = (fileUrl: string) => {
+    // contoh: https://.../file.pdf?thumbnail=1
+    // atau kalau sudah ada query: ...?a=b&thumbnail=1
+    const joiner = fileUrl.includes('?') ? '&' : '?';
+    return `${fileUrl}${joiner}thumbnail=1`;
+  };
+
   const cards: DocCard[] = useMemo(() => {
-    return (items || []).map((d, idx) => ({
-      key: `${d.history_id}_${d.filename}_${idx}`,
-      title: d.filename,
-      filename: d.filename,
-      type: d.type,
-      url: d.url,
-      history_id: d.history_id,
-    }));
+    return (items || []).map((d, idx) => {
+      const fullUrl = d.url.startsWith('file://') ? d.url : getFileUrl(d.url);
+      const previewUrl = buildPreviewUrl(fullUrl);
+
+      return {
+        key: `${d.history_id}_${d.filename}_${idx}`,
+        title: d.filename,
+        filename: d.filename,
+        type: d.type,
+        url: d.url,
+        history_id: d.history_id,
+        fullUrl,
+        previewUrl,
+      };
+    });
   }, [items]);
 
   const openDoc = (doc: DocCard) => {
-    const fullUrl = doc.url.startsWith('file://') ? doc.url : getFileUrl(doc.url);
-
     // jika pdf -> set pdfUrl juga
     if (doc.type === 'pdf') {
       navigation.navigate('DocumentPreview', {
-        documentUrl: fullUrl,
+        documentUrl: doc.fullUrl,
         documentTitle: doc.filename,
-        pdfUrl: fullUrl,
+        pdfUrl: doc.fullUrl,
       });
       return;
     }
 
     // docx
     navigation.navigate('DocumentPreview', {
-      documentUrl: fullUrl,
+      documentUrl: doc.fullUrl,
       documentTitle: doc.filename,
     });
   };
 
   const renderItem = ({ item }: { item: DocCard }) => {
+    const thumbError = !!thumbErrorMap[item.key];
+
     return (
       <Pressable style={({ pressed }) => [styles.card, pressed && styles.cardPressed]} onPress={() => openDoc(item)}>
+        {/* ✅ THUMB sekarang coba tampilkan preview image */}
         <View style={styles.thumb}>
-          <Ionicons name="document-text-outline" size={30} color="#111" />
-          <Text style={styles.thumbHint}>{item.type.toUpperCase()}</Text>
+          {!thumbError ? (
+            <>
+              <Image
+                source={{ uri: item.previewUrl }}
+                style={styles.thumbImage}
+                resizeMode="cover"
+                onError={() => {
+                  setThumbErrorMap((prev) => ({ ...prev, [item.key]: true }));
+                }}
+              />
+              <View style={styles.typeBadge}>
+                <Text style={styles.typeBadgeText}>{item.type.toUpperCase()}</Text>
+              </View>
+            </>
+          ) : (
+            // ✅ fallback kalau preview tidak ada
+            <>
+              <Ionicons name="document-text-outline" size={30} color="#111" />
+              <Text style={styles.thumbHint}>{item.type.toUpperCase()}</Text>
+            </>
+          )}
         </View>
 
         <Text style={styles.filename} numberOfLines={2}>
@@ -188,6 +231,7 @@ const styles = StyleSheet.create({
 
   grid: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 20 },
   row: { gap: 12 },
+
   card: {
     flex: 1,
     backgroundColor: '#F3F3F3',
@@ -197,15 +241,44 @@ const styles = StyleSheet.create({
   },
   cardPressed: { opacity: 0.7 },
 
+  // ✅ thumbnail jadi container untuk image
   thumb: {
     height: 90,
     backgroundColor: '#fff',
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    overflow: 'hidden', // ✅ supaya image mengikuti rounded corner
   },
-  thumbHint: { fontSize: 12, color: '#666' },
+
+  // ✅ preview image
+  thumbImage: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: '100%',
+    height: '100%',
+  },
+
+  // ✅ badge type di pojok (PDF/DOCX)
+  typeBadge: {
+    position: 'absolute',
+    right: 8,
+    bottom: 8,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  typeBadgeText: {
+    fontSize: 11,
+    color: '#fff',
+    fontWeight: '600',
+  },
+
+  thumbHint: { fontSize: 12, color: '#666', marginTop: 6 },
 
   filename: { marginTop: 10, fontSize: 13, color: '#111' },
 
