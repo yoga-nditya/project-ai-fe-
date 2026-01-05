@@ -15,8 +15,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../App';
 
-import { getCompanyDocuments } from '../services/api';
-import type { DocumentItem } from '../services/api';
+import { getCompanyDocuments, getFileUrl } from '../services/api';
+import type { CompanyDocumentItem } from '../services/api';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'CompanyDocuments'>;
@@ -27,7 +27,7 @@ type DocItem = {
   title: string;
   filename: string;
   type: string;
-  url: string;
+  url: string; // FULL URL
 };
 
 export default function CompanyDocumentsScreen({ navigation }: Props) {
@@ -46,20 +46,24 @@ export default function CompanyDocumentsScreen({ navigation }: Props) {
     try {
       setLoading(true);
 
-      const docs: DocumentItem[] = await getCompanyDocuments(query);
+      // ✅ ambil dari /api/company-documents (static/files)
+      const docs: CompanyDocumentItem[] = await getCompanyDocuments(query);
 
       const list: DocItem[] = (docs || []).map((d: any, idx: number) => {
+        const rawUrl = d.url || `/download/${d.filename}`;
+        const fullUrl = rawUrl.startsWith('http') ? rawUrl : getFileUrl(rawUrl);
+
         return {
-          key: `${d.filename}_${idx}`,
-          title: d.history_title || d.filename,
+          key: d.key || `${d.filename}_${idx}`,
+          title: d.title || d.filename, // ✅ company endpoint pakai "title"
           filename: d.filename,
           type: (d.type || 'pdf').toLowerCase(),
-          url: d.url, // ✅ sudah full dari getFileUrl helper di api.ts kalau kamu gunakan di backend
+          url: fullUrl, // ✅ FULL URL biar RN bisa load Image & preview
         };
       });
 
       setItems(list);
-      setThumbErrorMap({}); // reset thumb errors biar reload bersih
+      setThumbErrorMap({});
     } catch (e) {
       console.log('fetchCompanyDocs error:', e);
       setItems([]);
