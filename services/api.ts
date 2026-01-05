@@ -1,8 +1,9 @@
 import axios, { AxiosInstance } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_BASE_URL = 'https://voizebit-ai.onrender.com'; // Production
-// const API_BASE_URL = 'http://10.141.42.128:5000'; // Local
+// ✅ EXPORT supaya bisa dipakai di screen lain (CompanyDocumentsScreen, ChatScreen, dll)
+export const API_BASE_URL = 'https://voizebit-ai.onrender.com'; // Production
+// export const API_BASE_URL = 'http://10.141.42.128:5000'; // Local
 
 console.log('🌐 API Backend:', API_BASE_URL);
 
@@ -141,6 +142,7 @@ api.interceptors.request.use(
     }
 
     if (sessionId) {
+      // @ts-ignore
       config.headers['X-Session-ID'] = sessionId;
     }
 
@@ -361,13 +363,12 @@ const updateConversationState = (responseText: string): void => {
  */
 export const sendMessage = async (message: string, historyId?: number, taskType?: string): Promise<APIResponse> => {
   try {
-    // reset state kalau user mulai flow baru (quotation vs mou vs invoice)
     resetStateIfNewFlow(message);
 
     const payload: any = { message: message.trim() };
     if (historyId) payload.history_id = historyId;
 
-    // ✅ INI FIX UTAMA: kirim taskType
+    // ✅ kirim taskType
     if (taskType) payload.taskType = taskType;
 
     const response = await api.post('/api/chat', payload);
@@ -377,13 +378,9 @@ export const sendMessage = async (message: string, historyId?: number, taskType?
       updateConversationState(data.text);
     }
 
-    // quotation extraction
     const quotationData = extractQuotationData(data.text);
-
-    // mou extraction (optional)
     const mouData = extractMouData(data.text);
 
-    // reset state kalau selesai quotation
     if (quotationData && data.text.includes('Quotation berhasil dibuat')) {
       const finalData = { ...quotationData };
       resetConversationState();
@@ -391,7 +388,6 @@ export const sendMessage = async (message: string, historyId?: number, taskType?
       return { ...data, quotationData: finalData, mouData };
     }
 
-    // reset state kalau selesai MoU
     if (data.text && data.text.includes('MoU berhasil dibuat')) {
       const finalMou = mouData ? { ...mouData } : undefined;
       resetConversationState();
@@ -463,6 +459,27 @@ export const getDocuments = async (q?: string): Promise<DocumentItem[]> => {
 };
 
 /**
+ * ✅ NEW: Company Documents (pakai service seperti ChatScreen)
+ * Alias dari /api/documents
+ *
+ * Kalau backend kamu pakai endpoint /api/company-documents,
+ * cukup ganti path = '/api/company-documents'
+ */
+export const getCompanyDocuments = async (q?: string): Promise<DocumentItem[]> => {
+  try {
+    const path = '/api/documents';
+    const res = await api.get<{ items: DocumentItem[] }>(path, {
+      params: q ? { q } : undefined,
+    });
+    return res.data?.items ?? [];
+  } catch (error: any) {
+    console.error('❌ getCompanyDocuments error:', error);
+    if (error.response) throw new Error(error.response.data?.error || `Server error: ${error.response.status}`);
+    throw new Error(error.message || 'Terjadi kesalahan');
+  }
+};
+
+/**
  * ✅ NEW: Rename history
  */
 export const renameHistory = async (id: number, title: string): Promise<void> => {
@@ -490,6 +507,7 @@ export const deleteHistory = async (id: number): Promise<void> => {
 
 export const getFileUrl = (path: string): string => {
   if (!path) return '';
+  if (path.startsWith('file://')) return path;
   if (path.startsWith('http://') || path.startsWith('https://')) return path;
   const cleanPath = path.startsWith('/') ? path.substring(1) : path;
   return `${API_BASE_URL}/${cleanPath}`;
@@ -566,9 +584,12 @@ export default {
   getConversationState,
   testConnection,
   API_BASE_URL,
+
   getHistories,
   getHistoryDetail,
   getDocuments,
+  getCompanyDocuments, // ✅ NEW
+
   renameHistory,
   deleteHistory,
 };

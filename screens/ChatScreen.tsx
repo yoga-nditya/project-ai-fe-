@@ -69,19 +69,25 @@ export default function ChatScreen({ navigation, route }: ChatScreenProps) {
     autoStartTriggered.current = false;
   }, [taskType]);
 
-  // ✅ NEW: Normalisasi voice "strip" -> "-"
+  // ✅ FIX: Normalisasi voice "strip/minus/dash/garis" -> "-"
+  // (HANYA bagian ini yang diubah, kode lain tetap)
   const normalizeVoiceInput = (raw: string) => {
-    const t = (raw || '').trim();
+    let t = (raw || '').trim();
     if (!t) return t;
 
-    const lower = t.toLowerCase();
+    // ubah kata-kata yang sering keluar dari voice menjadi dash
+    // contoh: "A336 strip 1" -> "A336-1"
+    // contoh: "A336 minus satu" -> "A336-satu" (backend bisa lanjut normalisasi angka)
+    t = t.replace(/\b(strip|minus|dash|garis)\b/gi, '-');
 
-    // Jika user hanya bilang "strip"
-    if (lower === 'strip') return '-';
+    // rapikan spasi sekitar dash
+    t = t.replace(/\s*-\s*/g, '-');
 
-    // Kalau voice result sering jadi: "strip aja", "pakai strip", dll
-    // Dibuat toleran tapi tidak terlalu agresif
-    if (/\bstrip\b/i.test(lower) && lower.length <= 20) return '-';
+    // rapikan spasi ganda
+    t = t.replace(/\s+/g, ' ').trim();
+
+    // jika hasilnya cuma "-" tetap "-"
+    if (t.toLowerCase() === 'strip') return '-';
 
     return t;
   };
@@ -649,7 +655,9 @@ const styles = StyleSheet.create({
   fileInfo: { padding: 12 },
   fileName: { fontSize: 14, fontWeight: '500', color: '#111827', marginBottom: 6 },
   fileTypes: { flexDirection: 'row', gap: 6 },
-  fileTypeBadge: { paddingHorizontal: 8, paddingVertical: 3, backgroundColor: '#111827', borderRadius: 4 },
+
+  // ✅ CHANGED: badge color -> #2F5BFF (sejalan dengan tombol)
+  fileTypeBadge: { paddingHorizontal: 8, paddingVertical: 3, backgroundColor: '#2F5BFF', borderRadius: 4 },
   fileTypeText: { fontSize: 11, fontWeight: '600', color: '#fff' },
 
   // ✅ NEW: invoice file buttons
@@ -687,9 +695,10 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#111827',
   },
-  voiceButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#111827', justifyContent: 'center', alignItems: 'center', position: 'relative' },
-  wave: { position: 'absolute', width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: '#111827' },
-  sendButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#111827', justifyContent: 'center', alignItems: 'center' },
+
+  voiceButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#2F5BFF', justifyContent: 'center', alignItems: 'center', position: 'relative' },
+  wave: { position: 'absolute', width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: '#2F5BFF' },
+  sendButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#2F5BFF', justifyContent: 'center', alignItems: 'center' },
   sendButtonDisabled: { backgroundColor: '#D1D5DB' },
   sendIcon: { fontSize: 18, color: '#fff' },
 });

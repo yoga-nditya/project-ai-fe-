@@ -41,12 +41,10 @@ function decodeHtml(input: string): string {
 
   const decodeOnce = (x: string) =>
     x
-      // unicode escape JSON
       .replace(/\\u003C/gi, '<')
       .replace(/\\u003E/gi, '>')
       .replace(/\\u002F/gi, '/')
       .replace(/\\n/g, '\n')
-      // entity HTML umum
       .replace(/&nbsp;/gi, ' ')
       .replace(/&quot;/gi, '"')
       .replace(/&#39;/gi, "'")
@@ -56,7 +54,6 @@ function decodeHtml(input: string): string {
       .replace(/&gt;/gi, '>')
       .replace(/&amp;/gi, '&');
 
-  // loop beberapa kali untuk kasus &amp;lt;... (double-escaped)
   for (let i = 0; i < 6; i++) {
     const before = s;
     s = decodeOnce(s);
@@ -65,18 +62,13 @@ function decodeHtml(input: string): string {
   return s;
 }
 
-// ✅ Bersihkan untuk input rename (user jangan lihat tag)
 function stripAllTags(input: string): string {
   const s = decodeHtml(input || '');
   return s.replace(/<[^>]*>/g, '').replace(/\s{2,}/g, ' ').trim();
 }
 
-// ✅ Siapkan HTML untuk RenderHTML
 function toRenderableHtml(input: string): string {
   const decoded = decodeHtml(input || '');
-
-  // bungkus agar valid
-  // NOTE: kita biarkan <b>/<i>/<br> dll tetap ada
   return `<div>${decoded}</div>`;
 }
 
@@ -137,7 +129,7 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
       setSelectedChatId(null);
     } else {
       setSelectedChatId(chatId);
-      setEditTitle(stripAllTags(title)); // ✅ modal edit selalu plain text
+      setEditTitle(stripAllTags(title));
     }
   };
 
@@ -148,7 +140,7 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
     const safe = stripAllTags(editTitle);
     if (safe && selectedChatId) {
       try {
-        await renameHistory(Number(selectedChatId), safe); // ✅ kirim plain text
+        await renameHistory(Number(selectedChatId), safe);
         await fetchHistories(searchQuery.trim() ? searchQuery.trim() : undefined, true);
       } catch (e) {
         console.log('rename error:', e);
@@ -199,7 +191,9 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
             div: { margin: 0, padding: 0 },
             span: { margin: 0, padding: 0 },
           }}
-          allowedDomTags={['div', 'span', 'b', 'strong', 'i', 'em', 'br']}
+          // ✅ FIX: prop allowedDomTags tidak ada di versi kamu, jadi dihapus
+          // Optional: cegah tag lain
+          ignoredDomTags={['script', 'style', 'img', 'video', 'audio', 'iframe']}
           defaultTextProps={{ numberOfLines: 1 }}
         />
       </Pressable>
@@ -241,7 +235,7 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
             <View style={styles.quickActionsContainer}>
               <Pressable
                 style={({ pressed }) => [styles.quickActionItem, pressed && styles.quickActionPressed]}
-                onPress={() => navigation.navigate('Home')} // ✅ DIUBAH: Buat Chat Baru -> Home
+                onPress={() => navigation.navigate('Chat', { taskType: 'penawaran' } as any)}
               >
                 <Ionicons name="chatbubble" size={20} color="#000" />
                 <Text style={styles.quickActionText}>Buat Chat Baru</Text>
@@ -261,6 +255,15 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
               >
                 <Ionicons name="copy" size={20} color="#000" />
                 <Text style={styles.quickActionText}>Template</Text>
+              </Pressable>
+
+              {/* ✅ NEW MENU: Dokumen Perusahaan */}
+              <Pressable
+                style={({ pressed }) => [styles.quickActionItem, pressed && styles.quickActionPressed]}
+                onPress={() => navigation.navigate('CompanyDocuments' as any)}
+              >
+                <Ionicons name="folder-open" size={20} color="#000" />
+                <Text style={styles.quickActionText}>Dokumen Perusahaan</Text>
               </Pressable>
             </View>
 

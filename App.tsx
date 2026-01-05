@@ -3,7 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import * as SplashScreen from 'expo-splash-screen';
 
-import SplashView from './SplashView'; 
+import SplashView from './SplashView';
 
 import OnboardingScreen from './screens/Onboardingscreen';
 import LoginScreen from './screens/LoginScreen';
@@ -12,6 +12,9 @@ import ChatScreen from './screens/ChatScreen';
 import DocumentPreviewScreen from './screens/DocumentPreviewScreen';
 import HistoryScreen from './screens/HistoryScreen';
 import DocumentsScreen from './screens/DocumentsScreen';
+
+// ✅ NEW: import screen Dokumen Perusahaan
+import CompanyDocumentsScreen from './screens/CompanyDocumentsScreen';
 
 export type RootStackParamList = {
   Onboarding: undefined;
@@ -25,6 +28,9 @@ export type RootStackParamList = {
   };
   History: undefined;
   Documents: undefined;
+
+  // ✅ NEW ROUTE
+  CompanyDocuments: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -68,13 +74,17 @@ export default function App() {
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="Chat" component={ChatScreen} />
+
         <Stack.Screen
           name="DocumentPreview"
           component={DocumentPreviewScreen}
           options={{ animation: 'fade' }}
         />
+
         <Stack.Screen name="History" component={HistoryScreen} />
         <Stack.Screen name="Documents" component={DocumentsScreen} />
+
+        <Stack.Screen name="CompanyDocuments" component={CompanyDocumentsScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

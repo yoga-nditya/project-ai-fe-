@@ -7,7 +7,9 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "scheme": "voiceai",
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "newArchEnabled": false,
 
     "splash": {
@@ -26,12 +28,27 @@
     },
 
     "android": {
+      "package": "com.voiceai.assistant",
+
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.voiceai.assistant",
-      "permissions": ["RECORD_AUDIO"]
+
+      "permissions": [
+        "RECORD_AUDIO"
+      ],
+
+      "splash": {
+        "image": "./assets/logo.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#ffffff",
+
+        "android12": {
+          "image": "./assets/logo.png",
+          "iconBackgroundColor": "#ffffff"
+        }
+      }
     },
 
     "plugins": [
@@ -41,7 +58,8 @@
           "microphonePermission": "Izinkan aplikasi mengakses mikrofon untuk input suara.",
           "speechRecognitionPermission": "Izinkan aplikasi melakukan speech recognition untuk mengubah suara menjadi teks."
         }
-      ]
+      ],
+      "expo-asset"
     ],
 
     "extra": {
