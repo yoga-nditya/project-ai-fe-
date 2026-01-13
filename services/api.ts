@@ -29,6 +29,7 @@ export interface MouItem {
   jenis_limbah: string;
   kode_limbah: string;
 }
+
 export interface MouData {
   nomor_depan: string;
   nomor_surat?: string;
@@ -77,7 +78,6 @@ export interface HistoryDetail {
   state: any;
 }
 
-/** ✅ DB Documents (dari history) */
 export interface DocumentItem {
   history_id: number;
   history_title: string;
@@ -88,13 +88,12 @@ export interface DocumentItem {
   url: string;
 }
 
-/** ✅ Company Documents (langsung dari static/files) */
 export interface CompanyDocumentItem {
   key?: string;
   title?: string;
   filename: string;
   type: string;
-  url: string;        // biasanya "/download/<filename>"
+  url: string;
   created_at?: string;
 }
 
@@ -208,6 +207,7 @@ const detectFlowFromMessage = (msg: string): 'quotation' | 'mou' | 'invoice' | '
 
 const resetConversationState = () => {
   conversationState = {};
+  console.log('🔄 Conversation state reset');
 };
 
 const resetStateIfNewFlow = (message: string) => {
@@ -216,6 +216,7 @@ const resetStateIfNewFlow = (message: string) => {
   if (flow !== 'other' && flow !== activeFlow) {
     activeFlow = flow;
     resetConversationState();
+    console.log('🔄 Flow changed to:', flow);
   }
 
   if (activeFlow === 'other' && flow !== 'other') {
@@ -349,8 +350,36 @@ const updateConversationState = (responseText: string): void => {
 // API FUNCTIONS
 // ==========================
 
+// ✅ Reset session untuk chat baru
+export const resetSession = async (): Promise<void> => {
+  try {
+    const newSid = `mobile_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    await AsyncStorage.setItem('session_id', newSid);
+    sessionId = newSid;
+    resetConversationState();
+    activeFlow = 'other';
+    console.log('✅ Session reset to:', newSid);
+  } catch (error) {
+    console.error('❌ Reset session error:', error);
+  }
+};
+
 export const sendMessage = async (message: string, historyId?: number, taskType?: string): Promise<APIResponse> => {
   try {
+    // ✅ CRITICAL: Hanya reset session jika chat BARU (bukan dari history)
+    if (!historyId) {
+      const flow = detectFlowFromMessage(message);
+      // Jika ini adalah trigger awal flow (bukan continuation)
+      if (flow !== 'other' && (message.toLowerCase().includes('buatkan') || message.toLowerCase().includes('buat'))) {
+        await resetSession();
+        console.log('🔄 New chat detected - session reset');
+      }
+    } else {
+      // ✅ Jika ada historyId, jangan reset state di frontend
+      // Backend akan load state dari database
+      console.log('📖 Loading chat from history ID:', historyId);
+    }
+
     resetStateIfNewFlow(message);
 
     const payload: any = { message: message.trim() };
@@ -417,7 +446,6 @@ export const getHistoryDetail = async (id: number): Promise<HistoryDetail> => {
   }
 };
 
-/** DB documents (history) */
 export const getDocuments = async (q?: string): Promise<DocumentItem[]> => {
   try {
     const res = await api.get<{ items: DocumentItem[] }>('/api/documents', {
@@ -431,10 +459,8 @@ export const getDocuments = async (q?: string): Promise<DocumentItem[]> => {
   }
 };
 
-/** ✅ FIX UTAMA: company docs dari static/files */
 export const getCompanyDocuments = async (q?: string): Promise<CompanyDocumentItem[]> => {
   try {
-    // ✅ INI YANG BENAR (ambil dari folder static/files)
     const res = await api.get<{ items: CompanyDocumentItem[] }>('/api/company-documents', {
       params: q ? { q } : undefined,
     });
@@ -493,19 +519,6 @@ export const checkBackendHealth = async (): Promise<boolean> => {
   }
 };
 
-export const resetSession = async (): Promise<void> => {
-  try {
-    const newSid = `mobile_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-    await AsyncStorage.setItem('session_id', newSid);
-    sessionId = newSid;
-    resetConversationState();
-    activeFlow = 'other';
-    console.log('✅ Session reset:', newSid);
-  } catch (error) {
-    console.error('❌ Reset session error:', error);
-  }
-};
-
 export const getSessionId = (): string | null => sessionId;
 export const getConversationState = (): any => conversationState;
 
@@ -545,14 +558,10 @@ export default {
   getConversationState,
   testConnection,
   API_BASE_URL,
-
   getHistories,
   getHistoryDetail,
   getDocuments,
-
-  // ✅ FIX
   getCompanyDocuments,
-
   renameHistory,
   deleteHistory,
 };

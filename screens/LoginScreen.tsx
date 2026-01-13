@@ -42,91 +42,70 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
       <StatusBar barStyle="dark-content" />
 
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <ScrollView
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-          >
-            {/* App Title */}
-            <Text style={styles.appTitle}>Raisa</Text>
-
-            {/* Dot grid */}
-            <View style={styles.decorativeDotsContainer}>
-              <View style={styles.decorativeDots}>
-                {[...Array(50)].map((_, i) => (
-                  <View key={i} style={styles.dot} />
-                ))}
-              </View>
-            </View>
-
-            {/* Title */}
-            <View style={styles.titleContainer}>
-              <Text style={styles.title}>Selamat Datang</Text>
-              <Text style={styles.subtitle}>
-                Masuk untuk terus membuat invoice dan dokumen dengan asisten suara AI Anda.
-              </Text>
-            </View>
-
-            {/* Email */}
-            <View style={styles.inputContainer}>
-              <View style={styles.iconContainer}>
-                <Ionicons name="mail-outline" size={22} color="#2C2C2C" />
-              </View>
-              <TextInput
-                style={styles.input}
-                placeholder="Masukkan email Anda"
-                placeholderTextColor="#999"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                returnKeyType="next"
-              />
-            </View>
-
-            {/* Password */}
-            <View style={styles.inputContainer}>
-              <View style={styles.iconContainer}>
-                <Ionicons name="lock-closed-outline" size={22} color="#2C2C2C" />
-              </View>
-              <TextInput
-                style={styles.input}
-                placeholder="Masukkan kata sandi Anda"
-                placeholderTextColor="#999"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-                autoCapitalize="none"
-                autoCorrect={false}
-                returnKeyType="done"
-                onSubmitEditing={handleLogin}
-              />
-              <TouchableOpacity
-                onPress={() => setShowPassword(!showPassword)}
-                style={styles.eyeButton}
-              >
-                <Ionicons
-                  name={showPassword ? 'eye-outline' : 'eye-off-outline'}
-                  size={22}
-                  color="#999"
-                />
-              </TouchableOpacity>
-            </View>
-
-            {/* Login Button */}
-            <TouchableOpacity
-              style={styles.loginButton}
-              onPress={handleLogin}
-              activeOpacity={0.8}
+          <View style={{ flex: 1 }}>
+            <ScrollView
+              contentContainerStyle={styles.scrollContent}
+              keyboardShouldPersistTaps="always"
+              contentInsetAdjustmentBehavior="automatic"
+              showsVerticalScrollIndicator={false}
             >
-              <Text style={styles.loginButtonText}>Masuk</Text>
-            </TouchableOpacity>
-          </ScrollView>
+              <Text style={styles.appTitle}>Raisa</Text>
+
+              <View style={styles.decorativeDotsContainer}>
+                <View style={styles.decorativeDots}>
+                  {[...Array(50)].map((_, i) => (
+                    <View key={i} style={styles.dot} />
+                  ))}
+                </View>
+              </View>
+
+              <View style={styles.titleContainer}>
+                <Text style={styles.title}>Selamat Datang</Text>
+                <Text style={styles.subtitle}>
+                  Masuk untuk terus membuat invoice dan dokumen dengan asisten suara AI Anda.
+                </Text>
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Ionicons name="mail-outline" size={22} color="#2C2C2C" />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Masukkan email Anda"
+                  value={email}
+                  onChangeText={setEmail}
+                  autoCapitalize="none"
+                />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Ionicons name="lock-closed-outline" size={22} color="#2C2C2C" />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Masukkan kata sandi Anda"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                />
+                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                  <Ionicons
+                    name={showPassword ? 'eye-outline' : 'eye-off-outline'}
+                    size={22}
+                    color="#999"
+                  />
+                </TouchableOpacity>
+              </View>
+
+              {/* BUTTON TETAP DI POSISI ASLI */}
+              <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
+                <Text style={styles.loginButtonText}>Masuk</Text>
+              </TouchableOpacity>
+
+            </ScrollView>
+          </View>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -134,43 +113,37 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F5F5F5',
-  },
-  keyboardView: {
-    flex: 1,
-  },
+  container: { flex: 1, backgroundColor: '#F5F5F5' },
+
   scrollContent: {
     paddingHorizontal: 24,
     paddingTop: 60,
     paddingBottom: 40,
   },
 
-  // ✅ Raisa dibesarkan lagi
   appTitle: {
-    fontSize: 28, // 🔥 dari 24 → 28
+    fontSize: 28,
     fontWeight: '700',
     color: '#2F5BFF',
     textAlign: 'center',
     marginBottom: 14,
-    letterSpacing: 0.5,
   },
 
   decorativeDotsContainer: {
     alignItems: 'center',
     marginBottom: 34,
   },
+
   decorativeDots: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     width: 200,
     justifyContent: 'center',
   },
+
   dot: {
     width: 2,
     height: 2,
-    borderRadius: 1,
     backgroundColor: '#D0D0D0',
     margin: 2,
   },
@@ -179,57 +152,45 @@ const styles = StyleSheet.create({
     marginBottom: 48,
     alignItems: 'center',
   },
+
   title: {
     fontSize: 32,
     fontWeight: '600',
-    color: '#000',
     marginBottom: 12,
-    textAlign: 'center',
   },
+
   subtitle: {
     fontSize: 16,
-    fontWeight: '400',
     color: '#666',
-    lineHeight: 24,
     textAlign: 'center',
   },
+
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#FFF',
     borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    padding: 16,
     marginBottom: 16,
   },
-  iconContainer: {
-    marginRight: 12,
-  },
+
   input: {
     flex: 1,
     fontSize: 16,
-    fontWeight: '400',
-    color: '#000',
-  },
-  eyeButton: {
-    padding: 4,
     marginLeft: 8,
   },
+
   loginButton: {
     backgroundColor: '#2F5BFF',
     paddingVertical: 18,
     borderRadius: 50,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    elevation: 8,
-    marginTop: 16,
+    marginTop: 32,
   },
+
   loginButtonText: {
     fontSize: 17,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: '#FFF',
   },
 });

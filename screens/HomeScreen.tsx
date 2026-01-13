@@ -35,7 +35,7 @@ type MenuCard = {
 
 const menuCards: MenuCard[] = [
   { id: '1', title: 'Membuat Invoice', icon: 'receipt-outline', taskType: 'invoice', disabled: false },
-  { id: '2', title: 'Membuat Berita Acara', icon: 'pricetag-outline', taskType: 'penawaran', disabled: true }, // ✅ tetap 1 disable
+  { id: '2', title: 'Membuat Berita Acara', icon: 'pricetag-outline', taskType: 'penawaran', disabled: true },
   { id: '3', title: 'Membuat Penawaran', icon: 'document-text-outline', taskType: 'quotation', disabled: false },
   { id: '4', title: 'Membuat MoU', icon: 'people-outline', taskType: 'mou', disabled: false },
 ];
@@ -127,16 +127,12 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   }, [isListening, wave1, wave2, wave3]);
 
   /**
-   * ✅ Router command yang "anti nyasar":
-   * - Invoice: invoice/faktur/tagihan + variasi typo voice (invois/invoys)
-   * - MoU: mou/memorandum
-   * - Quotation: quotation/kuotasi/penawaran
-   * - Kata "buat/buatkan" tidak dijadikan trigger sendirian (biar tidak salah arah)
+   * ✅ Router command yang "anti nyasar"
    */
   const processCommand = (text: string) => {
     const lower = (text || '').toLowerCase();
 
-    // ✅ INVOICE (paling atas)
+    // ✅ INVOICE
     if (
       lower.includes('invoice') ||
       lower.includes('invois') ||
@@ -146,21 +142,34 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       lower.includes('tagihan')
     ) {
       if (isListening) Voice.stop().catch(() => {});
-      navigation.navigate('Chat', { taskType: 'invoice', autoStart: true });
+      // ✅ ADD: sessionKey untuk force remount
+      navigation.navigate('Chat', { 
+        taskType: 'invoice', 
+        autoStart: true,
+        sessionKey: Date.now().toString() // ✅ NEW
+      });
       return;
     }
 
     // ✅ MOU
     if (lower.includes('mou') || lower.includes('memorandum')) {
       if (isListening) Voice.stop().catch(() => {});
-      navigation.navigate('Chat', { taskType: 'mou', autoStart: true });
+      navigation.navigate('Chat', { 
+        taskType: 'mou', 
+        autoStart: true,
+        sessionKey: Date.now().toString() // ✅ NEW
+      });
       return;
     }
 
     // ✅ QUOTATION
     if (lower.includes('quotation') || lower.includes('kuotasi') || lower.includes('penawaran')) {
       if (isListening) Voice.stop().catch(() => {});
-      navigation.navigate('Chat', { taskType: 'quotation', autoStart: true });
+      navigation.navigate('Chat', { 
+        taskType: 'quotation', 
+        autoStart: true,
+        sessionKey: Date.now().toString() // ✅ NEW
+      });
       return;
     }
 
@@ -180,13 +189,20 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     Voice.cancel().catch(() => {});
     setIsListening(false);
 
-    // ✅ autoStart untuk invoice, quotation, mou
+    // ✅ autoStart untuk invoice, quotation, mou dengan sessionKey
     if (taskType === 'quotation' || taskType === 'mou' || taskType === 'invoice') {
-      navigation.navigate('Chat', { taskType, autoStart: true });
+      navigation.navigate('Chat', { 
+        taskType, 
+        autoStart: true,
+        sessionKey: Date.now().toString() // ✅ NEW: Force remount
+      });
       return;
     }
 
-    navigation.navigate('Chat', { taskType });
+    navigation.navigate('Chat', { 
+      taskType,
+      sessionKey: Date.now().toString() // ✅ NEW: Force remount
+    });
   };
 
   const handleVoicePress = async () => {
@@ -230,13 +246,12 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={0}
       >
-        {/* ✅ HEADER (hanya warna & spacing biar mirip screenshot) */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.menuButton} onPress={handleMenuPress} activeOpacity={0.7}>
             <Ionicons name="menu" size={24} color="#000" />
           </TouchableOpacity>
 
-          <Text style={styles.headerTitle}>Rasia</Text>
+          <Text style={styles.headerTitle}>Raisa</Text>
 
           <View style={styles.headerRight}>
             <View style={styles.avatarCircle}>
@@ -340,7 +355,6 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
             </TouchableOpacity>
           </View>
 
-          {/* ✅ BUTTON tetap, hanya warna diubah jadi biru sesuai screenshot */}
           <TouchableOpacity style={styles.voiceButton} onPress={handleVoicePress}>
             {isListening && (
               <>
@@ -382,7 +396,6 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 }
 
 const styles = StyleSheet.create({
-  // ✅ Background lebih mirip screenshot (abu muda)
   container: { flex: 1, backgroundColor: '#F3F4F6' },
   keyboardView: { flex: 1 },
 
@@ -397,12 +410,11 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#F3F4F6', // ✅ biar soft seperti screenshot
+    backgroundColor: '#F3F4F6',
     justifyContent: 'center',
     alignItems: 'center',
   },
 
-  // ✅ judul tengah biru
   headerTitle: {
     flex: 1,
     textAlign: 'center',
@@ -422,7 +434,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#E5E7EB', // ✅ lebih mirip
+    backgroundColor: '#E5E7EB',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -432,7 +444,6 @@ const styles = StyleSheet.create({
     color: '#000',
   },
 
-  // (kode lain tetap sama struktur, hanya tone warna halus)
   profileContainer: { width: 40, height: 40, borderRadius: 20, overflow: 'hidden' },
   profileImage: { width: '100%', height: '100%' },
 
@@ -462,7 +473,6 @@ const styles = StyleSheet.create({
   },
   cardDisabled: { opacity: 0.5 },
 
-  // ✅ border tetap tapi dibuat lebih “soft” seperti screenshot
   cardActive: { borderWidth: 1.5, borderColor: '#111' },
 
   cardIcon: {
@@ -506,15 +516,13 @@ const styles = StyleSheet.create({
   inputIcon: { marginRight: 8 },
   input: { flex: 1, fontSize: 15, color: '#000' },
 
-  // ✅ tombol tetap (arrow-up-circle), hanya opacity sedikit disesuaikan agar mirip
   inputButton: { marginLeft: 8, padding: 4, opacity: 0.6 },
 
-  // ✅ BUTTON sama persis, hanya warna background jadi biru + wave border biru
   voiceButton: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#2F5BFF', // ✅ dari hitam -> biru
+    backgroundColor: '#2F5BFF',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -531,6 +539,6 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 28,
     borderWidth: 2,
-    borderColor: '#2F5BFF', // ✅ dari hitam -> biru
+    borderColor: '#2F5BFF',
   },
 });

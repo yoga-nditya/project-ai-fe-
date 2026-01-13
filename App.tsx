@@ -12,15 +12,19 @@ import ChatScreen from './screens/ChatScreen';
 import DocumentPreviewScreen from './screens/DocumentPreviewScreen';
 import HistoryScreen from './screens/HistoryScreen';
 import DocumentsScreen from './screens/DocumentsScreen';
-
-// ✅ NEW: import screen Dokumen Perusahaan
 import CompanyDocumentsScreen from './screens/CompanyDocumentsScreen';
 
+// ✅ UPDATED: Tambah sessionKey untuk force remount ChatScreen
 export type RootStackParamList = {
   Onboarding: undefined;
   Login: undefined;
   Home: undefined;
-  Chat: { taskType: string; historyId?: number; autoStart?: boolean };
+  Chat: { 
+    taskType: string; 
+    historyId?: number; 
+    autoStart?: boolean;
+    sessionKey?: string; // ✅ NEW: untuk force remount
+  };
   DocumentPreview: {
     documentUrl: string;
     documentTitle: string;
@@ -28,8 +32,6 @@ export type RootStackParamList = {
   };
   History: undefined;
   Documents: undefined;
-
-  // ✅ NEW ROUTE
   CompanyDocuments: undefined;
 };
 
@@ -73,7 +75,13 @@ export default function App() {
         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Home" component={HomeScreen} />
-        <Stack.Screen name="Chat" component={ChatScreen} />
+        
+        {/* ✅ PENTING: ChatScreen dengan key props untuk force remount */}
+        <Stack.Screen 
+          name="Chat" 
+          component={ChatScreen}
+          getId={({ params }) => params?.sessionKey || 'default'} // ✅ NEW: Force remount dengan sessionKey
+        />
 
         <Stack.Screen
           name="DocumentPreview"
@@ -83,7 +91,6 @@ export default function App() {
 
         <Stack.Screen name="History" component={HistoryScreen} />
         <Stack.Screen name="Documents" component={DocumentsScreen} />
-
         <Stack.Screen name="CompanyDocuments" component={CompanyDocumentsScreen} />
       </Stack.Navigator>
     </NavigationContainer>

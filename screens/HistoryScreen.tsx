@@ -22,7 +22,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import RenderHTML from 'react-native-render-html';
 import { RootStackParamList } from '../App';
 
-import { getHistories, renameHistory, deleteHistory, HistoryItem } from '../services/api';
+import { getHistories, renameHistory, deleteHistory, HistoryItem, resetSession } from '../services/api'; // ✅ import resetSession
 
 type HistoryScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'History'>;
@@ -30,11 +30,10 @@ type HistoryScreenProps = {
 
 type ChatHistory = {
   id: string;
-  title: string; // bisa HTML / escaped HTML
+  title: string;
   taskType: string;
 };
 
-// ✅ Decode entity HTML + unicode escape, bisa double-escaped
 function decodeHtml(input: string): string {
   if (!input) return '';
   let s = String(input);
@@ -119,9 +118,19 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
     }));
   }, [serverHistories]);
 
-  const handleChatPress = (chat: ChatHistory) => {
+  // ✅ UPDATED: Reset session sebelum buka history
+  const handleChatPress = async (chat: ChatHistory) => {
     setSelectedChatId(null);
-    navigation.navigate('Chat', { taskType: chat.taskType, historyId: Number(chat.id) });
+    
+    // ✅ Reset session agar backend tidak pakai state lama
+    await resetSession();
+    console.log('🔄 Session reset before opening history');
+    
+    navigation.navigate('Chat', { 
+      taskType: chat.taskType, 
+      historyId: Number(chat.id),
+      sessionKey: Date.now().toString() // ✅ Force remount
+    });
   };
 
   const handleMenuPress = (chatId: string, title: string) => {
@@ -191,8 +200,6 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
             div: { margin: 0, padding: 0 },
             span: { margin: 0, padding: 0 },
           }}
-          // ✅ FIX: prop allowedDomTags tidak ada di versi kamu, jadi dihapus
-          // Optional: cegah tag lain
           ignoredDomTags={['script', 'style', 'img', 'video', 'audio', 'iframe']}
           defaultTextProps={{ numberOfLines: 1 }}
         />
@@ -235,7 +242,7 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
             <View style={styles.quickActionsContainer}>
               <Pressable
                 style={({ pressed }) => [styles.quickActionItem, pressed && styles.quickActionPressed]}
-                onPress={() => navigation.navigate('Chat', { taskType: 'penawaran' } as any)}
+                onPress={() => navigation.navigate('Home')}
               >
                 <Ionicons name="chatbubble" size={20} color="#000" />
                 <Text style={styles.quickActionText}>Buat Chat Baru</Text>
@@ -257,7 +264,6 @@ export default function HistoryScreen({ navigation }: HistoryScreenProps) {
                 <Text style={styles.quickActionText}>Template</Text>
               </Pressable>
 
-              {/* ✅ NEW MENU: Dokumen Perusahaan */}
               <Pressable
                 style={({ pressed }) => [styles.quickActionItem, pressed && styles.quickActionPressed]}
                 onPress={() => navigation.navigate('CompanyDocuments' as any)}
